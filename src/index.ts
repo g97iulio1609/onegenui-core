@@ -153,7 +153,7 @@ export {
   CanvasPropsSchema,
   DocumentPropsSchema,
   CanvasDefinition,
-  DocumentDefinition,
+  DocumentDefinition as CanvasDocumentDefinition, // Rename to avoid conflict with components Document
   CanvasActionsSchema,
   CanvasModeSchema,
   DocumentContextSchema,
