@@ -147,3 +147,25 @@ export * from "./streaming";
 
 // Ports
 export * from "./ports";
+
+// Canvas Component Schemas
+export {
+  CanvasPropsSchema,
+  DocumentPropsSchema,
+  CanvasDefinition,
+  DocumentDefinition,
+  CanvasActionsSchema,
+  CanvasModeSchema,
+  DocumentContextSchema,
+  CanvasAISettingsSchema,
+  WebSearchSettingsSchema,
+  ProactiveSettingsSchema,
+  TargetAudienceSchema,
+  DocumentPurposeSchema,
+  WritingToneSchema,
+  type CanvasProps,
+  type DocumentProps,
+  type CanvasMode,
+  type DocumentContext,
+  type CanvasAISettings,
+} from "./canvas";
