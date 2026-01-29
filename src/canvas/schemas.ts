@@ -212,7 +212,7 @@ export const CanvasActionsSchema = {
         end: z.number(),
       })
       .optional(),
-    params: z.record(z.unknown()).optional(),
+    params: z.record(z.string(), z.unknown()).optional(),
   }),
   "canvas:export": z.object({
     documentId: z.string(),
