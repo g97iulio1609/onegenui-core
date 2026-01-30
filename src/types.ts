@@ -133,8 +133,14 @@ export interface UIElement<
   layout?: ElementLayout;
   /** System metadata (turnId for chronological ordering, etc.) */
   _meta?: {
+    /** ID of the turn that last modified this element */
     turnId?: string;
+    /** Timestamp when element was created */
     createdAt?: number;
+    /** Timestamp when element was last modified */
+    lastModifiedAt?: number;
+    /** True if element was auto-created as placeholder */
+    autoCreated?: boolean;
   };
 }
 
