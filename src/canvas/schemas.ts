@@ -124,6 +124,30 @@ export const CanvasPropsSchema = z.object({
     .optional()
     .describe("Initial Lexical editor state (serialized)"),
 
+  // Markdown content - easier for AI to generate
+  markdown: z
+    .string()
+    .optional()
+    .describe(
+      "Markdown content that will be converted to Lexical state. " +
+        "Use this instead of initialContent for simpler content generation. " +
+        "Supports images with ![alt](url) syntax.",
+    ),
+
+  // Images to embed in the document
+  images: z
+    .array(
+      z.object({
+        url: z.string().describe("Image URL"),
+        alt: z.string().optional().describe("Alt text for accessibility"),
+        caption: z.string().optional().describe("Image caption"),
+      }),
+    )
+    .optional()
+    .describe(
+      "Images to embed in the document. AI can use web images directly.",
+    ),
+
   // Display
   width: z.string().default("100%").describe("CSS width"),
   height: z.string().default("400px").describe("CSS min-height"),
