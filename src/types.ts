@@ -131,6 +131,16 @@ export interface UIElement<
   locked?: boolean;
   /** Layout configuration (sizing, grid position, resize) */
   layout?: ElementLayout;
+  /**
+   * Editable props configuration.
+   * - undefined/true: All text props are auto-detected and editable (default)
+   * - false: Element is not editable
+   * - string[]: Only specified props are editable
+   *
+   * Text props are auto-detected by name: title, text, label, description,
+   * content, heading, caption, placeholder, value, name, message, subtitle
+   */
+  editable?: boolean | string[];
   /** System metadata (turnId for chronological ordering, etc.) */
   _meta?: {
     /** ID of the turn that last modified this element */
