@@ -1,404 +1,228 @@
 /**
  * Canvas Component Schemas
  *
- * Defines Canvas and Document components as Generative UI elements
- * that AI can generate for document editing tasks.
- * 
- * SCHEMA DESIGN PRINCIPLES:
- * - Every node MUST have a required `type` field
- * - `children` arrays are required (not optional/default)
- * - Only truly optional fields have `.optional()`
- * - No `.default()` on arrays to force AI to provide content
+ * Defines Canvas and Document components as Generative UI elements.
+ * Uses Tiptap (ProseMirror) JSON format exclusively.
  */
 import { z } from "zod";
 
 // =============================================================================
-// Lexical Editor Content Schema
+// Tiptap Editor Content Schema (ProseMirror JSON format)
 // =============================================================================
 
-/**
- * Text formatting bitmask values (can be combined):
- * - 1 = bold
- * - 2 = italic
- * - 4 = strikethrough
- * - 8 = underline
- * - 16 = code
- * - 32 = subscript
- * - 64 = superscript
- * Example: bold + italic = 3
- */
-const TextFormatSchema = z
-  .number()
-  .int()
-  .min(0)
-  .max(127)
-  .describe("Text format bitmask: 1=bold, 2=italic, 4=strikethrough, 8=underline, 16=code");
-
-const BlockDirectionSchema = z.enum(["ltr", "rtl"]);
-const BlockAlignmentSchema = z.enum(["left", "center", "right", "justify", "start", "end"]);
-
-// -----------------------------------------------------------------------------
-// Inline (Leaf) Nodes - Must be inside block nodes
-// -----------------------------------------------------------------------------
-
-/** 
- * Text node - the fundamental leaf node for all text content.
- * REQUIRED: type, text
- */
-export const LexicalTextNodeSchema = z.object({
-  type: z.literal("text").describe("REQUIRED: Must be 'text'"),
-  text: z.string().describe("REQUIRED: The actual text content"),
-  format: TextFormatSchema.optional().describe("Text formatting bitmask"),
-  style: z.string().optional().describe("CSS inline styles"),
+/** Text mark (inline formatting) */
+export const TiptapMarkSchema = z.object({
+  type: z.enum(["bold", "italic", "strike", "underline", "code", "link", "highlight"]),
+  attrs: z.record(z.string(), z.unknown()).optional(),
 });
 
-/** Line break node */
-export const LexicalLineBreakNodeSchema = z.object({
-  type: z.literal("linebreak").describe("REQUIRED: Must be 'linebreak'"),
+/** Text node */
+export const TiptapTextNodeSchema = z.object({
+  type: z.literal("text"),
+  text: z.string(),
+  marks: z.array(TiptapMarkSchema).optional(),
 });
 
-/** 
- * Link node - hyperlink with text children.
- * REQUIRED: type, url, children
- */
-export const LexicalLinkNodeSchema = z.object({
-  type: z.literal("link").describe("REQUIRED: Must be 'link'"),
-  url: z.string().url().describe("REQUIRED: Link URL"),
-  target: z.enum(["_blank", "_self"]).optional(),
-  children: z.array(z.lazy(() => LexicalTextNodeSchema))
-    .min(1)
-    .describe("REQUIRED: Link text (array of text nodes)"),
+/** Hard break */
+export const TiptapHardBreakSchema = z.object({
+  type: z.literal("hardBreak"),
 });
 
-/** All inline content types that can appear inside blocks */
-export const LexicalInlineNodeSchema = z.discriminatedUnion("type", [
-  LexicalTextNodeSchema,
-  LexicalLineBreakNodeSchema,
-  LexicalLinkNodeSchema,
+/** Inline content types */
+export const TiptapInlineContentSchema = z.discriminatedUnion("type", [
+  TiptapTextNodeSchema,
+  TiptapHardBreakSchema,
 ]);
 
-// -----------------------------------------------------------------------------
-// Block-Level Nodes - Must be inside root
-// -----------------------------------------------------------------------------
+// Generic content array to avoid circular references
+const TiptapContentArray = z.array(z.unknown());
 
-/** 
- * Paragraph node - standard text block.
- * REQUIRED: type, children
- */
-export const LexicalParagraphNodeSchema = z.object({
-  type: z.literal("paragraph").describe("REQUIRED: Must be 'paragraph'"),
-  children: z.array(LexicalInlineNodeSchema)
-    .min(1)
-    .describe("REQUIRED: Inline content (at least one text node)"),
-  direction: BlockDirectionSchema.optional(),
-  format: BlockAlignmentSchema.optional(),
-  indent: z.number().int().min(0).max(10).optional(),
+/** Paragraph node */
+export const TiptapParagraphSchema = z.object({
+  type: z.literal("paragraph"),
+  attrs: z.object({
+    textAlign: z.enum(["left", "center", "right", "justify"]).optional(),
+  }).optional(),
+  content: z.array(TiptapInlineContentSchema).optional(),
 });
 
-/** 
- * Heading node - h1-h6 headers.
- * REQUIRED: type, tag, children
- */
-export const LexicalHeadingNodeSchema = z.object({
-  type: z.literal("heading").describe("REQUIRED: Must be 'heading'"),
-  tag: z.enum(["h1", "h2", "h3", "h4", "h5", "h6"]).describe("REQUIRED: Heading level"),
-  children: z.array(LexicalInlineNodeSchema)
-    .min(1)
-    .describe("REQUIRED: Heading text (at least one text node)"),
-  direction: BlockDirectionSchema.optional(),
-  format: BlockAlignmentSchema.optional(),
+/** Heading node */
+export const TiptapHeadingSchema = z.object({
+  type: z.literal("heading"),
+  attrs: z.object({
+    level: z.number().min(1).max(6),
+    textAlign: z.enum(["left", "center", "right"]).optional(),
+  }),
+  content: z.array(TiptapInlineContentSchema).optional(),
 });
 
-/** 
- * Quote/blockquote node.
- * REQUIRED: type, children
- */
-export const LexicalQuoteNodeSchema = z.object({
-  type: z.literal("quote").describe("REQUIRED: Must be 'quote'"),
-  children: z.array(LexicalInlineNodeSchema)
-    .min(1)
-    .describe("REQUIRED: Quote text"),
-  direction: BlockDirectionSchema.optional(),
+/** Code block node */
+export const TiptapCodeBlockSchema = z.object({
+  type: z.literal("codeBlock"),
+  attrs: z.object({
+    language: z.string().optional(),
+  }).optional(),
+  content: z.array(TiptapTextNodeSchema).optional(),
 });
 
-/** 
- * Code block node with optional language.
- * REQUIRED: type, children
- */
-export const LexicalCodeNodeSchema = z.object({
-  type: z.literal("code").describe("REQUIRED: Must be 'code'"),
-  language: z.string().optional().describe("Programming language (javascript, python, typescript, etc.)"),
-  children: z.array(LexicalTextNodeSchema)
-    .min(1)
-    .describe("REQUIRED: Code content (text nodes only)"),
+/** List item node */
+export const TiptapListItemSchema = z.object({
+  type: z.literal("listItem"),
+  content: TiptapContentArray.optional(),
 });
 
-/** 
- * List item node.
- * REQUIRED: type, value, children
- */
-export const LexicalListItemNodeSchema = z.object({
-  type: z.literal("listitem").describe("REQUIRED: Must be 'listitem'"),
-  value: z.number().int().min(1).describe("REQUIRED: List item number (1-based)"),
-  checked: z.boolean().optional().describe("For checklist items only"),
-  children: z.array(LexicalInlineNodeSchema)
-    .min(1)
-    .describe("REQUIRED: Item content (at least one text node)"),
+/** Bullet list node */
+export const TiptapBulletListSchema = z.object({
+  type: z.literal("bulletList"),
+  content: z.array(TiptapListItemSchema),
 });
 
-/** 
- * List node (bullet, numbered, or checklist).
- * REQUIRED: type, listType, children
- */
-export const LexicalListNodeSchema = z.object({
-  type: z.literal("list").describe("REQUIRED: Must be 'list'"),
-  listType: z.enum(["bullet", "number", "check"]).describe("REQUIRED: List style"),
-  start: z.number().int().min(1).optional().describe("Starting number for numbered lists"),
-  children: z.array(LexicalListItemNodeSchema)
-    .min(1)
-    .describe("REQUIRED: List items (at least one)"),
+/** Ordered list node */
+export const TiptapOrderedListSchema = z.object({
+  type: z.literal("orderedList"),
+  attrs: z.object({ start: z.number().optional() }).optional(),
+  content: z.array(TiptapListItemSchema),
 });
 
-// -----------------------------------------------------------------------------
-// Table Nodes
-// -----------------------------------------------------------------------------
-
-/** 
- * Table cell node - contains paragraphs.
- * REQUIRED: type, children
- */
-export const LexicalTableCellNodeSchema = z.object({
-  type: z.literal("tablecell").describe("REQUIRED: Must be 'tablecell'"),
-  headerState: z.number().int().min(0).max(3).optional()
-    .describe("0=normal, 1=row header, 2=col header, 3=both"),
-  colSpan: z.number().int().min(1).optional(),
-  rowSpan: z.number().int().min(1).optional(),
-  children: z.array(z.lazy(() => LexicalParagraphNodeSchema))
-    .min(1)
-    .describe("REQUIRED: Cell content (paragraphs)"),
+/** Table cell */
+export const TiptapTableCellSchema = z.object({
+  type: z.literal("tableCell"),
+  attrs: z.object({
+    colspan: z.number().optional(),
+    rowspan: z.number().optional(),
+    colwidth: z.array(z.number()).optional(),
+  }).optional(),
+  content: TiptapContentArray.optional(),
 });
 
-/** 
- * Table row node - contains cells.
- * REQUIRED: type, children
- */
-export const LexicalTableRowNodeSchema = z.object({
-  type: z.literal("tablerow").describe("REQUIRED: Must be 'tablerow'"),
-  children: z.array(LexicalTableCellNodeSchema)
-    .min(1)
-    .describe("REQUIRED: Row cells (at least one)"),
+/** Table header cell */
+export const TiptapTableHeaderSchema = z.object({
+  type: z.literal("tableHeader"),
+  attrs: z.object({
+    colspan: z.number().optional(),
+    rowspan: z.number().optional(),
+  }).optional(),
+  content: TiptapContentArray.optional(),
 });
 
-/** 
- * Table node - contains rows.
- * REQUIRED: type, children
- */
-export const LexicalTableNodeSchema = z.object({
-  type: z.literal("table").describe("REQUIRED: Must be 'table'"),
-  children: z.array(LexicalTableRowNodeSchema)
-    .min(1)
-    .describe("REQUIRED: Table rows (at least one)"),
+/** Table row */
+export const TiptapTableRowSchema = z.object({
+  type: z.literal("tableRow"),
+  content: z.array(z.union([TiptapTableCellSchema, TiptapTableHeaderSchema])),
 });
 
-// -----------------------------------------------------------------------------
-// Rich Media Nodes
-// -----------------------------------------------------------------------------
-
-/** 
- * Image node.
- * REQUIRED: type, src
- */
-export const LexicalImageNodeSchema = z.object({
-  type: z.literal("image").describe("REQUIRED: Must be 'image'"),
-  src: z.string().describe("REQUIRED: Image source URL"),
-  alt: z.string().optional().describe("Alt text for accessibility"),
-  width: z.number().int().positive().optional(),
-  height: z.number().int().positive().optional(),
-  caption: z.string().optional(),
+/** Table node */
+export const TiptapTableSchema = z.object({
+  type: z.literal("table"),
+  content: z.array(TiptapTableRowSchema),
 });
 
-/** 
- * Math (LaTeX) node.
- * REQUIRED: type, equation
- */
-export const LexicalMathNodeSchema = z.object({
-  type: z.literal("math").describe("REQUIRED: Must be 'math'"),
-  equation: z.string().min(1).describe("REQUIRED: LaTeX equation"),
-  inline: z.boolean().optional().describe("Inline vs block display"),
+/** Image node */
+export const TiptapImageSchema = z.object({
+  type: z.literal("image"),
+  attrs: z.object({
+    src: z.string(),
+    alt: z.string().optional(),
+    title: z.string().optional(),
+    width: z.number().optional(),
+    height: z.number().optional(),
+  }),
 });
 
-/** 
- * Diagram node (Mermaid, PlantUML, etc.).
- * REQUIRED: type, code
- */
-export const LexicalDiagramNodeSchema = z.object({
-  type: z.literal("diagram").describe("REQUIRED: Must be 'diagram'"),
-  diagramType: z.enum(["mermaid", "plantuml", "graphviz"]).optional(),
-  code: z.string().min(1).describe("REQUIRED: Diagram source code"),
+/** Horizontal rule */
+export const TiptapHorizontalRuleSchema = z.object({
+  type: z.literal("horizontalRule"),
 });
 
-// -----------------------------------------------------------------------------
-// Union of All Block Nodes
-// -----------------------------------------------------------------------------
+/** Math block (KaTeX) */
+export const TiptapMathBlockSchema = z.object({
+  type: z.literal("mathBlock"),
+  attrs: z.object({ latex: z.string() }),
+});
 
-/** All block-level content types that can appear in root.children */
-export const LexicalBlockNodeSchema = z.discriminatedUnion("type", [
-  LexicalParagraphNodeSchema,
-  LexicalHeadingNodeSchema,
-  LexicalQuoteNodeSchema,
-  LexicalCodeNodeSchema,
-  LexicalListNodeSchema,
-  LexicalTableNodeSchema,
-  LexicalImageNodeSchema,
-  LexicalMathNodeSchema,
-  LexicalDiagramNodeSchema,
+/** Diagram block (Mermaid) */
+export const TiptapDiagramSchema = z.object({
+  type: z.literal("diagram"),
+  attrs: z.object({
+    code: z.string(),
+    diagramType: z.enum(["flowchart", "sequence", "class", "state", "er", "gantt", "pie"]).optional(),
+  }),
+});
+
+/** Callout block */
+export const TiptapCalloutSchema = z.object({
+  type: z.literal("callout"),
+  attrs: z.object({
+    variant: z.enum(["info", "warning", "error", "success", "note"]),
+    title: z.string().optional(),
+  }),
+  content: TiptapContentArray.optional(),
+});
+
+/** Blockquote node */
+export const TiptapBlockquoteSchema = z.object({
+  type: z.literal("blockquote"),
+  content: TiptapContentArray.optional(),
+});
+
+/** All block node types */
+export const TiptapBlockNodeSchema = z.discriminatedUnion("type", [
+  TiptapParagraphSchema,
+  TiptapHeadingSchema,
+  TiptapCodeBlockSchema,
+  TiptapBulletListSchema,
+  TiptapOrderedListSchema,
+  TiptapTableSchema,
+  TiptapImageSchema,
+  TiptapHorizontalRuleSchema,
+  TiptapMathBlockSchema,
+  TiptapDiagramSchema,
+  TiptapCalloutSchema,
+  TiptapBlockquoteSchema,
 ]);
 
-// -----------------------------------------------------------------------------
-// Root Node & Complete State
-// -----------------------------------------------------------------------------
-
-/** 
- * Root node - the top-level container for all document content.
- * REQUIRED: type, children
- */
-export const LexicalRootNodeSchema = z.object({
-  type: z.literal("root").describe("REQUIRED: Must be 'root'"),
-  children: z.array(LexicalBlockNodeSchema)
-    .min(1)
-    .describe("REQUIRED: Block-level content (at least one block)"),
-  direction: BlockDirectionSchema.optional(),
+/** Complete Tiptap document */
+export const TiptapDocumentSchema = z.object({
+  type: z.literal("doc"),
+  content: z.array(TiptapBlockNodeSchema),
 });
 
-/**
- * Complete Lexical editor state schema.
- * 
- * This is the ONLY valid structure for Canvas initialContent.
- * - Every node MUST have a "type" field
- * - Every children array MUST have at least one element
- * - Block nodes go in root.children
- * - Inline nodes (text, link) go inside block nodes' children
- */
-export const LexicalEditorStateSchema = z.object({
-  root: LexicalRootNodeSchema.describe("REQUIRED: The root node"),
-}).strict().describe("Lexical editor serialized state - structured output only");
-
-// -----------------------------------------------------------------------------
-// Type Exports
-// -----------------------------------------------------------------------------
-
-export type LexicalEditorState = z.infer<typeof LexicalEditorStateSchema>;
-export type LexicalRootNode = z.infer<typeof LexicalRootNodeSchema>;
-export type LexicalBlockNode = z.infer<typeof LexicalBlockNodeSchema>;
-export type LexicalInlineNode = z.infer<typeof LexicalInlineNodeSchema>;
-export type LexicalTextNode = z.infer<typeof LexicalTextNodeSchema>;
-export type LexicalParagraphNode = z.infer<typeof LexicalParagraphNodeSchema>;
-export type LexicalHeadingNode = z.infer<typeof LexicalHeadingNodeSchema>;
-export type LexicalQuoteNode = z.infer<typeof LexicalQuoteNodeSchema>;
-export type LexicalCodeNode = z.infer<typeof LexicalCodeNodeSchema>;
-export type LexicalListNode = z.infer<typeof LexicalListNodeSchema>;
-export type LexicalListItemNode = z.infer<typeof LexicalListItemNodeSchema>;
-export type LexicalTableNode = z.infer<typeof LexicalTableNodeSchema>;
-export type LexicalTableRowNode = z.infer<typeof LexicalTableRowNodeSchema>;
-export type LexicalTableCellNode = z.infer<typeof LexicalTableCellNodeSchema>;
-export type LexicalImageNode = z.infer<typeof LexicalImageNodeSchema>;
-export type LexicalMathNode = z.infer<typeof LexicalMathNodeSchema>;
-export type LexicalDiagramNode = z.infer<typeof LexicalDiagramNodeSchema>;
-export type LexicalLinkNode = z.infer<typeof LexicalLinkNodeSchema>;
+export type TiptapDocument = z.infer<typeof TiptapDocumentSchema>;
+export type TiptapBlockNode = z.infer<typeof TiptapBlockNodeSchema>;
+export type TiptapMark = z.infer<typeof TiptapMarkSchema>;
+export type TiptapTextNode = z.infer<typeof TiptapTextNodeSchema>;
 
 // =============================================================================
-// Canvas Mode Types
+// Canvas Configuration Schemas
 // =============================================================================
 
-/** Canvas operating modes - AI selects based on task */
 export const CanvasModeSchema = z
-  .enum(["document", "report", "code", "spreadsheet", "slides", "research"])
-  .describe("Canvas mode optimized for the specific task type");
+  .enum(["document", "notes", "code", "presentation", "research", "chat"])
+  .describe("Canvas mode determines default AI behavior and formatting");
 
-export type CanvasMode = z.infer<typeof CanvasModeSchema>;
-
-// =============================================================================
-// Document Context Settings
-// =============================================================================
-
-/** Target audience for the document */
-export const TargetAudienceSchema = z
-  .enum(["executives", "technical", "general", "academic", "sales", "internal"])
-  .describe("Who will read this document - affects language and depth");
-
-/** Document purpose */
-export const DocumentPurposeSchema = z
-  .enum(["inform", "persuade", "document", "present", "educate", "entertain"])
-  .describe("Primary goal of the document");
-
-/** Writing tone */
-export const WritingToneSchema = z
-  .enum(["professional", "academic", "conversational", "technical", "creative"])
-  .describe("Writing style and register");
-
-/** Document context settings - configures AI behavior */
 export const DocumentContextSchema = z.object({
-  audience: TargetAudienceSchema.optional(),
-  purpose: DocumentPurposeSchema.optional(),
-  tone: WritingToneSchema.optional(),
-  formalityLevel: z
-    .number()
-    .min(1)
-    .max(5)
-    .optional()
-    .describe("1=Informal, 5=Very Formal"),
-  language: z.string().optional().describe("Output language code (e.g., en, it)"),
-  technicalLevel: z
-    .number()
-    .min(1)
-    .max(5)
-    .optional()
-    .describe("1=Simple, 5=Highly Technical"),
+  purpose: z.string().optional().describe("Document purpose (e.g., 'blog post', 'report')"),
+  audience: z.string().optional().describe("Target audience"),
+  tone: z.enum(["formal", "casual", "technical", "creative"]).optional(),
+  language: z.string().default("en").describe("ISO language code"),
 });
 
-export type DocumentContext = z.infer<typeof DocumentContextSchema>;
-
-// =============================================================================
-// AI Settings
-// =============================================================================
-
-/** Web search integration settings */
 export const WebSearchSettingsSchema = z.object({
-  autoFacts: z.boolean().default(true).describe("Auto-verify facts"),
-  autoData: z.boolean().default(true).describe("Auto-update statistics"),
-  autoCitations: z.boolean().default(false).describe("Auto-add citations"),
-  autoContext: z.boolean().default(true).describe("Auto-enrich context"),
-  depth: z
-    .enum(["shallow", "standard", "deep"])
-    .default("standard")
-    .describe("Search depth"),
-  sources: z
-    .enum(["academic", "news", "general", "all"])
-    .default("all")
-    .describe("Source filter"),
+  enabled: z.boolean().default(true).describe("Enable web search for research"),
+  maxResults: z.number().int().min(1).max(10).default(5),
+  includeSources: z.boolean().default(true).describe("Show source citations"),
 });
 
-/** Proactive AI settings */
 export const ProactiveSettingsSchema = z.object({
   enabled: z.boolean().default(true).describe("Enable proactive suggestions"),
-  frequency: z
-    .enum(["minimal", "moderate", "high"])
-    .default("moderate")
-    .describe("Suggestion frequency"),
-  autoReview: z
-    .boolean()
-    .default(false)
-    .describe("Auto-review on completion"),
+  frequency: z.enum(["minimal", "moderate", "high"]).default("moderate"),
+  autoReview: z.boolean().default(false).describe("Auto-review on completion"),
 });
 
-/** Complete AI settings for Canvas */
 export const CanvasAISettingsSchema = z.object({
   webSearch: WebSearchSettingsSchema.optional(),
   proactive: ProactiveSettingsSchema.optional(),
-  liveCollaboration: z
-    .boolean()
-    .default(true)
-    .describe("AI writes in real-time"),
+  liveCollaboration: z.boolean().default(true).describe("AI writes in real-time"),
 });
 
 export type CanvasAISettings = z.infer<typeof CanvasAISettingsSchema>;
@@ -418,37 +242,26 @@ export const CanvasPropsSchema = z.object({
   context: DocumentContextSchema.optional().describe("Document context settings"),
   aiSettings: CanvasAISettingsSchema.optional().describe("AI behavior settings"),
 
-  // Content - use Lexical schema for validation
-  initialContent: LexicalEditorStateSchema
+  // Content - Tiptap document format
+  content: z.object({
+    type: z.literal("doc"),
+    content: z.array(z.unknown()),
+  })
     .optional()
     .describe(
-      "Initial Lexical editor state. EVERY node MUST have a 'type' field. " +
-      "Use types: root, paragraph, heading, text, list, listitem, code, quote, linebreak"
+      "Tiptap document. Use types: paragraph, heading, codeBlock, table, " +
+      "bulletList, orderedList, image, mathBlock, diagram, callout, blockquote"
     ),
 
-  // Markdown content - easier for AI to generate
-  markdown: z
-    .string()
-    .optional()
-    .describe(
-      "Markdown content that will be converted to Lexical state. " +
-        "Use this instead of initialContent for simpler content generation. " +
-        "Supports images with ![alt](url) syntax.",
-    ),
+  // Markdown content - alternative input format
+  markdown: z.string().optional().describe("Markdown content (converted to Tiptap)"),
 
-  // Images to embed in the document
-  images: z
-    .array(
-      z.object({
-        url: z.string().describe("Image URL"),
-        alt: z.string().optional().describe("Alt text for accessibility"),
-        caption: z.string().optional().describe("Image caption"),
-      }),
-    )
-    .optional()
-    .describe(
-      "Images to embed in the document. AI can use web images directly.",
-    ),
+  // Images to embed
+  images: z.array(z.object({
+    url: z.string().describe("Image URL"),
+    alt: z.string().optional().describe("Alt text"),
+    caption: z.string().optional().describe("Caption"),
+  })).optional().describe("Images to embed in document"),
 
   // Display
   width: z.string().default("100%").describe("CSS width"),
@@ -459,10 +272,8 @@ export const CanvasPropsSchema = z.object({
   // Behavior
   readOnly: z.boolean().default(false).describe("Read-only mode"),
   autoSave: z.boolean().default(true).describe("Auto-save changes"),
-  placeholder: z
-    .string()
-    .default("Start typing... Use '/' for commands")
-    .describe("Placeholder text"),
+  placeholder: z.string().default("Start typing... Use '/' for commands"),
+  streamingEnabled: z.boolean().default(true).describe("Enable streaming"),
 });
 
 export type CanvasProps = z.infer<typeof CanvasPropsSchema>;
@@ -472,80 +283,70 @@ export const CanvasDefinition = {
   name: "Canvas" as const,
   props: CanvasPropsSchema,
   description:
-    "Rich document editor with AI collaboration. Supports markdown, LaTeX, code, " +
-    "tables, and diagrams. AI generates task-specific configurations automatically. " +
-    "Use for writing reports, documentation, research, code, and presentations.",
+    "Rich document editor with AI collaboration. " +
+    "IMPORTANT: Use 'content' prop (NOT 'initialContent'). " +
+    "Content must be Tiptap format: {type:'doc',content:[...]}. " +
+    "Supports: paragraph, heading, codeBlock, table, bulletList, orderedList, " +
+    "image, mathBlock, diagram, callout, blockquote.",
   hasChildren: false,
+  example: {
+    type: "Canvas",
+    key: "canvas_1",
+    props: {
+      title: "Document",
+      content: {
+        type: "doc",
+        content: [
+          {
+            type: "heading",
+            attrs: { level: 1 },
+            content: [{ type: "text", text: "Hello World" }],
+          },
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "Start writing..." }],
+          },
+        ],
+      },
+    },
+    children: [],
+  },
 };
 
 // =============================================================================
-// Document Component Schema (Simplified Canvas)
+// Document Component (read-only view)
 // =============================================================================
 
-/** Document block for displaying content with "Open in Canvas" action */
 export const DocumentPropsSchema = z.object({
-  title: z.string().describe("Document title"),
-  content: z.string().describe("Document content (markdown, html, or text)"),
-  format: z
-    .enum(["markdown", "html", "text"])
-    .default("markdown")
-    .describe("Content format"),
-  documentId: z.string().optional().describe("ID for opening in Canvas"),
-  showOpenInCanvas: z
-    .boolean()
-    .default(true)
-    .describe("Show 'Open in Canvas' button"),
-  summary: z.string().optional().describe("Brief summary of the document"),
-  wordCount: z.number().optional().describe("Word count for display"),
-  lastModified: z.string().optional().describe("ISO date of last modification"),
+  documentId: z.string().describe("Document identifier"),
+  title: z.string().optional(),
+  content: z.object({
+    type: z.literal("doc"),
+    content: z.array(z.unknown()),
+  }).optional(),
+  markdown: z.string().optional(),
+  showToc: z.boolean().default(true).describe("Show table of contents"),
+  showMetadata: z.boolean().default(true).describe("Show document metadata"),
 });
 
 export type DocumentProps = z.infer<typeof DocumentPropsSchema>;
 
-/** Document component definition for catalog */
 export const DocumentDefinition = {
   name: "Document" as const,
   props: DocumentPropsSchema,
-  description:
-    "Displays document content with preview. Click 'Open in Canvas' for full editing. " +
-    "Use for showing generated documents, reports, or any text content.",
+  description: "Read-only document viewer with table of contents",
   hasChildren: false,
-};
-
-// =============================================================================
-// Canvas Actions
-// =============================================================================
-
-/** Canvas-specific actions that AI can trigger */
-export const CanvasActionsSchema = {
-  "canvas:create": z.object({
-    title: z.string().optional(),
-    mode: CanvasModeSchema.optional(),
-    content: z.string().optional(),
-    context: DocumentContextSchema.optional(),
-  }),
-  "canvas:open": z.object({
-    documentId: z.string().optional(),
-    title: z.string().optional(),
-    content: z.string().optional(),
-  }),
-  "canvas:edit": z.object({
-    documentId: z.string(),
-    operation: z.enum(["rewrite", "expand", "condense", "changeTone", "enhance"]),
-    selection: z
-      .object({
-        start: z.number(),
-        end: z.number(),
-      })
-      .optional(),
-    params: z.record(z.string(), z.unknown()).optional(),
-  }),
-  "canvas:export": z.object({
-    documentId: z.string(),
-    format: z.enum(["markdown", "pdf", "docx", "pptx", "xlsx"]),
-  }),
-  "canvas:save": z.object({
-    documentId: z.string(),
-    content: z.unknown(),
-  }),
+  example: {
+    type: "Document",
+    key: "doc_1",
+    props: {
+      documentId: "doc-123",
+      title: "Report",
+      content: {
+        type: "doc",
+        content: [],
+      },
+    },
+    children: [],
+  },
 };
