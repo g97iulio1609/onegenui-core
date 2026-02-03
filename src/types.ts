@@ -151,6 +151,8 @@ export interface UIElement<
     lastModifiedAt?: number;
     /** True if element was auto-created as placeholder */
     autoCreated?: boolean;
+    /** True if element is a placeholder waiting for content */
+    isPlaceholder?: boolean;
   };
 }
 
