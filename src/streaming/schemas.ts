@@ -8,7 +8,18 @@ import { z } from "zod";
 // =============================================================================
 
 export const UIElementMetaSchema = z.object({
-  turnId: z.string().describe("Unique ID for the AI turn that created this"),
+  turnId: z
+    .string()
+    .optional()
+    .describe("Backward-compatible turn identifier"),
+  createdTurnId: z
+    .string()
+    .optional()
+    .describe("Unique ID for the AI turn that created this"),
+  lastModifiedTurnId: z
+    .string()
+    .optional()
+    .describe("Unique ID for the AI turn that last modified this"),
   sequence: z
     .number()
     .int()

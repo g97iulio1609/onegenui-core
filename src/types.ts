@@ -143,8 +143,15 @@ export interface UIElement<
   editable?: boolean | string[];
   /** System metadata (turnId for chronological ordering, etc.) */
   _meta?: {
-    /** ID of the turn that last modified this element */
+    /**
+     * Backward-compatible turn identifier.
+     * Prefer `createdTurnId`/`lastModifiedTurnId` for new logic.
+     */
     turnId?: string;
+    /** ID of the turn that first created this element */
+    createdTurnId?: string;
+    /** ID of the turn that last modified this element */
+    lastModifiedTurnId?: string;
     /** Timestamp when element was created */
     createdAt?: number;
     /** Timestamp when element was last modified */
