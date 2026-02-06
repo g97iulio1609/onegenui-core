@@ -34,6 +34,7 @@ export {
   DynamicStringSchema,
   DynamicNumberSchema,
   DynamicBooleanSchema,
+  JsonPatchSchema,
   resolveDynamicValue,
   getByPath,
   setByPath,

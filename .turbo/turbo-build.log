@@ -1,23 +1,22 @@
 
-
 > @onegenui/core@0.2.0 build /Users/giulioleone/Sviluppo/genUi/json-render/packages/core
 > tsup
 
-[34mCLI[39m Building entry: src/index.ts
-[34mCLI[39m Using tsconfig: tsconfig.json
-[34mCLI[39m tsup v8.5.1
-[34mCLI[39m Using tsup config: /Users/giulioleone/Sviluppo/genUi/json-render/packages/core/tsup.config.ts
-[34mCLI[39m Target: es2022
-[34mCLI[39m Cleaning output folder
-[34mCJS[39m Build start
-[34mESM[39m Build start
-[32mCJS[39m [1mdist/index.js     [22m[32m95.27 KB[39m
-[32mCJS[39m [1mdist/index.js.map [22m[32m192.97 KB[39m
-[32mCJS[39m ⚡️ Build success in 42ms
-[32mESM[39m [1mdist/index.mjs     [22m[32m85.62 KB[39m
-[32mESM[39m [1mdist/index.mjs.map [22m[32m188.75 KB[39m
-[32mESM[39m ⚡️ Build success in 42ms
+CLI Building entry: src/index.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/giulioleone/Sviluppo/genUi/json-render/packages/core/tsup.config.ts
+CLI Target: es2022
+CLI Cleaning output folder
+CJS Build start
+ESM Build start
+CJS dist/index.js     99.03 KB
+CJS dist/index.js.map 199.06 KB
+CJS ⚡️ Build success in 22ms
+ESM dist/index.mjs     88.43 KB
+ESM dist/index.mjs.map 194.80 KB
+ESM ⚡️ Build success in 31ms
 DTS Build start
-DTS ⚡️ Build success in 1146ms
-DTS dist/index.d.ts  91.83 KB
-DTS dist/index.d.mts 91.83 KB
+DTS ⚡️ Build success in 1241ms
+DTS dist/index.d.ts  103.50 KB
+DTS dist/index.d.mts 103.50 KB

@@ -87,6 +87,8 @@ export interface PromptGeneratorConfig {
   componentRules?: Record<string, string>;
   /** Skills content from skills.md files (component name -> content) */
   skills?: Record<string, string>;
+  /** Filter to include only specific components (if set, only these names appear) */
+  componentFilter?: string[];
   /** Additional sections to append before the final prompt line */
   extraSections?: string[];
   /** Final prompt line (defaults to "Generate JSONL patches now:") */
@@ -135,20 +137,26 @@ export function generateSystemPrompt<
     dataCollectionPreferForm = true,
     componentRules = {},
     skills = {},
+    componentFilter,
     extraSections = [],
     outroText = "Generate JSONL patches now:",
   } = config;
 
   const lines: string[] = [introText, ""];
 
+  // Filter component names if componentFilter is provided
+  const activeComponents = componentFilter
+    ? catalog.componentNames.filter((n) => componentFilter.includes(String(n)))
+    : catalog.componentNames;
+
   // Component list
   lines.push("AVAILABLE COMPONENTS:");
-  lines.push(catalog.componentNames.map(String).join(", "));
+  lines.push(activeComponents.map(String).join(", "));
   lines.push("");
 
   // Component details
   lines.push("COMPONENT DETAILS:");
-  for (const name of catalog.componentNames) {
+  for (const name of activeComponents) {
     const def = catalog.components[name];
     if (def) {
       lines.push(generateComponentDoc(String(name), def));

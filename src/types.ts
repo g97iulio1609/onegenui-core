@@ -273,6 +273,7 @@ export const JsonPatchSchema = z.object({
     "remove",
     "replace",
     "set",
+    "ensure",
     "message",
     "question",
     "suggestion",
@@ -429,7 +430,13 @@ export type StreamEventType =
 /**
  * Tool progress status
  */
-export type ToolProgressStatus = "starting" | "progress" | "complete" | "error";
+export type ToolProgressStatus =
+  | "pending"
+  | "starting"
+  | "progress"
+  | "running"
+  | "complete"
+  | "error";
 
 /**
  * Tool progress stream event

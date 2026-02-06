@@ -69,3 +69,26 @@ export {
   noopStreamPersistence,
   noopStreamTelemetry,
 } from "./ports";
+
+// Wire Protocol v3
+export {
+  WireProtocolVersionSchema,
+  WireControlEventSchema,
+  WireProgressEventSchema,
+  WirePatchEventSchema,
+  WireMessageEventSchema,
+  WireErrorEventSchema,
+  WireDoneEventSchema,
+  WireEventSchema,
+  WireFrameSchema,
+  createWireFrame,
+  type WireEvent,
+  type WireFrame,
+  type WireControlEvent,
+  type WireProgressEvent,
+  type WirePatchEvent,
+  type WireMessageEvent,
+  type WireErrorEvent,
+  type WireDoneEvent,
+  type CreateWireFrameInput,
+} from "./protocol";
