@@ -1,5 +1,8 @@
 /**
- * Streaming Schemas - Zod schemas for structured streaming output
+ * Streaming Schemas - Zod schemas for UI element structure
+ *
+ * Wire Protocol v3 schemas are in protocol.ts.
+ * This file contains reusable element/patch schemas.
  */
 import { z } from "zod";
 
@@ -38,99 +41,6 @@ export const StreamPatchSchema = z.object({
   path: z.string().regex(/^\//, "Path must start with /"),
   value: z.unknown().optional(),
   from: z.string().optional(),
-});
-
-// =============================================================================
-// Message Type Schemas (Discriminated Union)
-// =============================================================================
-
-export const PatchMessageSchema = z.object({
-  type: z.literal("patch"),
-  patches: z.array(StreamPatchSchema),
-  targetPath: z.string().optional(),
-});
-
-export const ChatMessageSchema = z.object({
-  type: z.literal("message"),
-  role: z.enum(["user", "assistant", "system"]),
-  content: z.string(),
-  id: z.string().optional(),
-});
-
-export const QuestionMessageSchema = z.object({
-  type: z.literal("question"),
-  questionId: z.string(),
-  prompt: z.string(),
-  options: z
-    .array(
-      z.object({
-        label: z.string(),
-        value: z.string(),
-      }),
-    )
-    .optional(),
-  inputType: z
-    .enum(["text", "select", "multiselect", "number", "date"])
-    .optional(),
-  required: z.boolean().optional(),
-});
-
-export const SuggestionMessageSchema = z.object({
-  type: z.literal("suggestion"),
-  suggestions: z.array(
-    z.object({
-      id: z.string(),
-      label: z.string(),
-      action: z.string().optional(),
-    }),
-  ),
-});
-
-export const ToolProgressMessageSchema = z.object({
-  type: z.literal("tool-progress"),
-  toolId: z.string(),
-  toolName: z.string(),
-  status: z.enum(["pending", "running", "complete", "error"]),
-  progress: z.number().min(0).max(100).optional(),
-  message: z.string().optional(),
-  result: z.unknown().optional(),
-});
-
-export const StreamControlSchema = z.object({
-  type: z.literal("control"),
-  action: z.enum(["start", "end", "error", "abort"]),
-  error: z
-    .object({
-      code: z.string(),
-      message: z.string(),
-      recoverable: z.boolean(),
-    })
-    .optional(),
-});
-
-// =============================================================================
-// Stream Message (Discriminated Union)
-// =============================================================================
-
-export const StreamMessageSchema = z.discriminatedUnion("type", [
-  PatchMessageSchema,
-  ChatMessageSchema,
-  QuestionMessageSchema,
-  SuggestionMessageSchema,
-  ToolProgressMessageSchema,
-  StreamControlSchema,
-]);
-
-// =============================================================================
-// Stream Frame (Top-level envelope)
-// =============================================================================
-
-export const StreamFrameSchema = z.object({
-  version: z.literal("2.0").describe("Protocol version"),
-  timestamp: z.number().describe("Unix timestamp"),
-  correlationId: z.string().uuid().describe("Request correlation ID"),
-  sequence: z.number().int().nonnegative().describe("Frame sequence number"),
-  message: StreamMessageSchema,
 });
 
 // =============================================================================

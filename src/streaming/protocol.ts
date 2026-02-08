@@ -5,6 +5,7 @@
  */
 import { z } from "zod";
 import { JsonPatchSchema } from "../types";
+import { StrictUiPatchSchema } from "./ui-patch-contract";
 
 export const WireProtocolVersionSchema = z.literal("3.0");
 
@@ -44,11 +45,28 @@ export const WireProgressEventSchema = z.object({
   data: z.unknown().optional(),
 });
 
+const LegacyInteractionPatchSchema = JsonPatchSchema.refine(
+  (patch) =>
+    patch.op === "message" ||
+    patch.op === "question" ||
+    patch.op === "suggestion",
+  {
+    message:
+      'Only "message", "question", or "suggestion" legacy operations are allowed here.',
+  },
+);
+
+const WirePatchPayloadSchema = z.union([
+  StrictUiPatchSchema,
+  LegacyInteractionPatchSchema,
+]);
+
 export const WirePatchEventSchema = z
   .object({
     kind: z.literal("patch"),
-    patch: JsonPatchSchema.optional(),
-    patches: z.array(JsonPatchSchema).optional(),
+    patch: WirePatchPayloadSchema.optional(),
+    patches: z.array(WirePatchPayloadSchema).optional(),
+    atomic: z.boolean().optional(),
   })
   .refine((value) => !!value.patch || (value.patches?.length ?? 0) > 0, {
     message: "patch or patches is required",
@@ -56,6 +74,8 @@ export const WirePatchEventSchema = z
 
 export const WireMessageEventSchema = z.object({
   kind: z.literal("message"),
+  id: z.string().min(1).optional(),
+  mode: z.enum(["append", "replace", "final"]).default("final"),
   role: z.enum(["user", "assistant", "system"]).default("assistant"),
   content: z.string().min(1),
 });

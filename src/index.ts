@@ -23,10 +23,6 @@ export type {
   // Document Index types (Vectorless)
   DocumentIndexNode,
   DocumentIndex,
-  StreamEventType,
-  ToolProgressStatus,
-  ToolProgressEvent,
-  DocumentIndexEvent,
 } from "./types";
 
 export {

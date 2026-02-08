@@ -1,19 +1,19 @@
 /**
  * Patch Buffer - Handles out-of-order patch reordering
  */
-import type { StreamPatch, StreamFrame } from "./types";
+import type { WireFrame } from "./protocol";
 
 // =============================================================================
 // Types
 // =============================================================================
 
 interface BufferedFrame {
-  frame: StreamFrame;
+  frame: WireFrame;
   receivedAt: number;
 }
 
 interface FlushResult {
-  frames: StreamFrame[];
+  frames: WireFrame[];
   gaps: number[];
 }
 
@@ -28,7 +28,7 @@ export class PatchBuffer {
   private readonly gapTimeout: number;
   private readonly flushInterval: number;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
-  private onFlush: ((frames: StreamFrame[]) => void) | null = null;
+  private onFlush: ((frames: WireFrame[]) => void) | null = null;
 
   constructor(
     options: {
@@ -45,14 +45,14 @@ export class PatchBuffer {
   /**
    * Set flush callback
    */
-  setOnFlush(callback: (frames: StreamFrame[]) => void): void {
+  setOnFlush(callback: (frames: WireFrame[]) => void): void {
     this.onFlush = callback;
   }
 
   /**
    * Add a frame to the buffer
    */
-  add(frame: StreamFrame): void {
+  add(frame: WireFrame): void {
     const { sequence } = frame;
 
     // Store in buffer
@@ -88,7 +88,7 @@ export class PatchBuffer {
    * Flush in-order frames
    */
   flush(): FlushResult {
-    const frames: StreamFrame[] = [];
+    const frames: WireFrame[] = [];
     const gaps: number[] = [];
 
     while (this.buffer.has(this.expectedSequence)) {
@@ -109,7 +109,7 @@ export class PatchBuffer {
    * Force flush with gap handling
    */
   forceFlush(): FlushResult {
-    const frames: StreamFrame[] = [];
+    const frames: WireFrame[] = [];
     const gaps: number[] = [];
     const now = Date.now();
 

@@ -27,5 +27,24 @@ describe("stream wire protocol", () => {
 
     expect(parsed.success).toBe(false);
   });
-});
 
+  it("rejects patch frames with stringified element payloads", () => {
+    const parsed = WireFrameSchema.safeParse({
+      version: "3.0",
+      correlationId: "corr-3",
+      sequence: 1,
+      timestamp: Date.now(),
+      event: {
+        kind: "patch",
+        patch: {
+          op: "add",
+          path: "/elements/main-stack",
+          value:
+            '{"key":"main-stack","type":"Stack","props":{"gap":"lg"},"children":[]}',
+        },
+      },
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+});

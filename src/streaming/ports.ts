@@ -1,12 +1,8 @@
 /**
  * Streaming Ports - Hexagonal architecture ports for streaming
  */
-import type {
-  StreamFrame,
-  StreamMessage,
-  ValidationResult,
-  StreamOptions,
-} from "./types";
+import type { WireFrame, WireEvent } from "./protocol";
+import type { ValidationResult, StreamOptions } from "./types";
 
 // =============================================================================
 // Stream Source Port (Primary/Driving)
@@ -29,7 +25,7 @@ export interface StreamSourcePort {
   /**
    * Subscribe to stream frames
    */
-  subscribe(callback: (frame: StreamFrame) => void): () => void;
+  subscribe(callback: (frame: WireFrame) => void): () => void;
 
   /**
    * Subscribe to errors
@@ -53,12 +49,12 @@ export interface StreamSinkPort {
   /**
    * Send a frame to the stream
    */
-  send(frame: StreamFrame): Promise<void>;
+  send(frame: WireFrame): Promise<void>;
 
   /**
    * Send a message (will be wrapped in a frame)
    */
-  sendMessage(message: StreamMessage): Promise<void>;
+  sendMessage(message: WireEvent): Promise<void>;
 
   /**
    * Flush any buffered data
@@ -93,7 +89,7 @@ export interface ValidationPort {
    * Parse with auto-recovery
    */
   parseWithRecovery(data: unknown): {
-    frame: StreamFrame | null;
+    frame: WireFrame | null;
     validation: ValidationResult;
     recovered: boolean;
   };
@@ -139,7 +135,7 @@ export interface StreamPersistencePort {
 export interface StreamState {
   sessionId: string;
   lastSequence: number;
-  pendingFrames: StreamFrame[];
+  pendingFrames: WireFrame[];
   timestamp: number;
 }
 
@@ -154,7 +150,7 @@ export interface StreamTelemetryPort {
   /**
    * Record a frame received event
    */
-  recordFrameReceived(frame: StreamFrame): void;
+  recordFrameReceived(frame: WireFrame): void;
 
   /**
    * Record a validation error
@@ -169,7 +165,7 @@ export interface StreamTelemetryPort {
   /**
    * Record recovery action
    */
-  recordRecovery(frame: StreamFrame): void;
+  recordRecovery(frame: WireFrame): void;
 
   /**
    * Get metrics

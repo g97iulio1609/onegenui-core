@@ -1,18 +1,18 @@
 /**
  * Stream Validation Pipeline
  *
- * Validates incoming stream frames and provides error recovery.
+ * Validates incoming Wire Protocol v3 frames and provides error recovery.
  */
-import { z } from "zod";
 import {
-  StreamFrameSchema,
+  WireFrameSchema,
+  WireEventSchema,
+} from "./protocol";
+import type { WireFrame } from "./protocol";
+import {
   StreamPatchSchema,
   UIElementSchema,
-  StreamMessageSchema,
 } from "./schemas";
 import type {
-  StreamFrame,
-  StreamPatch,
   ValidationResult,
   ValidationError,
   ValidationWarning,
@@ -43,7 +43,7 @@ export class StreamValidationPipeline {
     const errors: ValidationError[] = [];
     const warnings: ValidationWarning[] = [];
 
-    const result = StreamFrameSchema.safeParse(data);
+    const result = WireFrameSchema.safeParse(data);
 
     if (!result.success) {
       for (const issue of result.error.issues) {
@@ -78,7 +78,7 @@ export class StreamValidationPipeline {
     const errors: ValidationError[] = [];
     const warnings: ValidationWarning[] = [];
 
-    const result = StreamMessageSchema.safeParse(data);
+    const result = WireEventSchema.safeParse(data);
 
     if (!result.success) {
       for (const issue of result.error.issues) {
@@ -183,7 +183,7 @@ export class StreamValidationPipeline {
    * Parse and validate with auto-fix for recoverable errors
    */
   parseWithRecovery(data: unknown): {
-    frame: StreamFrame | null;
+    frame: WireFrame | null;
     validation: ValidationResult;
     recovered: boolean;
   } {
@@ -191,7 +191,7 @@ export class StreamValidationPipeline {
 
     if (validation.valid) {
       return {
-        frame: data as StreamFrame,
+        frame: data as WireFrame,
         validation,
         recovered: false,
       };
@@ -209,7 +209,7 @@ export class StreamValidationPipeline {
           autoFixed: true,
         });
         return {
-          frame: fixed as StreamFrame,
+          frame: fixed as WireFrame,
           validation: revalidation,
           recovered: true,
         };
@@ -229,7 +229,7 @@ export class StreamValidationPipeline {
 
     // Fix missing version
     if (!obj.version) {
-      obj.version = "2.0";
+      obj.version = "3.0";
     }
 
     // Fix missing timestamp
